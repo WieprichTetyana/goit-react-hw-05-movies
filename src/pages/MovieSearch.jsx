@@ -1,57 +1,64 @@
-import React, { useState, useEffect } from 'react';
-import { getMovieByQuery } from '../routes/api';
-import { Link, useSearchParams } from 'react-router-dom';
+import { getMoviesByQuery } from 'routes/movies';
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { Wrapper, StyledLoader } from './page.styled';
 
-export const MovieSearch = () => {
-  const [movies, setMovies] = useState([]);
+const MovieSearch = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [movies, setMovies] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = event => {
-    event.preventDefault();
-    const value = event.currentTarget.elements.search.value.trim();
-
-    if (!value) {
-      return;
-    }
-
-    setSearchParams({ query: value });
-  };
+  const location = useLocation();
 
   useEffect(() => {
-    const query = searchParams.get('query');
+    const getMoviesByQueryFromApi = async () => {
+      try {
+        const query = searchParams.get('query');
+        if (!query) return;
+        setIsLoading(true);
+        const { results } = await getMoviesByQuery(query);
+        setMovies(results);
+      } catch (error) {
+        console.log(error.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    getMoviesByQueryFromApi();
+  }, [searchParams, setIsLoading]);
 
-    if (query) {
-      setLoading(true);
-
-      getMovieByQuery(query)
-        .then(res => {
-          setMovies(res);
-          setLoading(false);
-        })
-        .catch(err => {
-          console.log(err.message);
-          setLoading(false);
-        });
+  const handleSubmit = e => {
+    e.preventDefault();
+    if (!e.target[0].value) {
+      alert('Please enter your search query!');
     }
-  }, [searchParams]);
+    e.target[0].value && setSearchParams({ query: e.target[0].value });
+  };
 
   return (
-    <>
-      <form onSubmit={handleSubmit} className="form">
-        <input type="text" placeholder="Search movie" name="search" />
+    <Wrapper>
+      <form onSubmit={handleSubmit}>
+        <input
+          type="text"
+          autoComplete="off"
+          autoFocus
+          placeholder="Search movies"
+        />
         <button type="submit">Search</button>
       </form>
-      {loading && <p>Loading...</p>}
-      <div>
-        <ul className="movieList">
+      {isLoading && <StyledLoader>Loading...</StyledLoader>}
+      {movies && (
+        <ul>
           {movies.map(({ title, id }) => (
             <li key={id}>
-              <Link to={`/movies/${id}`}>{title}</Link>
+              <Link state={location} to={`${id}`}>
+                {title}
+              </Link>
             </li>
           ))}
         </ul>
-      </div>
-    </>
+      )}
+    </Wrapper>
   );
 };
+
+export default MovieSearch;
